@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkySync — Drone Footage Intelligence</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --color-bg: #fafafa;
+    --color-bg-alt: #f4f6f9;
+    --color-surface: #ffffff;
+    --color-border: rgba(0,0,0,0.08);
+    --color-border-hover: rgba(0,0,0,0.16);
+    --color-text-primary: #0a0a0f;
+    --color-text-secondary: #3d3d4a;
+    --color-text-tertiary: #6e6e80;
+    --color-text-quaternary: #9898a8;
+    --color-accent: #0891b2;
+    --color-accent-light: #e0f7fc;
+    --color-accent-hover: #0670a0;
+    --color-app-bg: #0c0e14;
+    --radius-sm: 6px; --radius-md: 12px; --radius-lg: 20px; --radius-xl: 28px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+    --shadow-lg: 0 12px 40px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-xl: 0 24px 80px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.08);
+    --transition: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--color-bg); color: var(--color-text-primary);
+    line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+
+  /* NAV — dark always */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: 60px;
+    background: rgba(7,8,12,0.93);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    transform: translate3d(0,0,999px);
+  }
+  .nav-inner {
+    max-width: 1120px; margin: 0 auto; height: 100%;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+  }
+  .nav-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; cursor: pointer; }
+  .nav-logo img { height: 26px; }
+  .nav-logo-name { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+  .nav-links { display: flex; align-items: center; gap: 2px; }
+  .nav-link {
+    font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.5);
+    text-decoration: none; padding: 6px 12px; border-radius: var(--radius-sm);
+    transition: color var(--transition), background var(--transition);
+    cursor: pointer; border: none; background: none;
+  }
+  .nav-link:hover, .nav-link.active { color: #fff; background: rgba(255,255,255,0.08); }
+  .nav-cta {
+    font-size: 14px; font-weight: 600; color: #fff;
+    background: var(--color-accent); border: none;
+    padding: 8px 18px; border-radius: var(--radius-sm);
+    cursor: pointer; transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+    box-shadow: 0 2px 12px rgba(8,145,178,0.35);
+  }
+  .nav-cta:hover { background: #0ea5c9; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(8,145,178,0.5); }
+
+  /* PAGE SYSTEM */
+  .page { display: none; padding-top: 60px; }
+  .page.active { display: block; }
+  #page-home { padding-top: 0; }
+
+  /* SHARED */
+  .section { padding: 96px 24px; }
+  .section-sm { padding: 48px 24px; }
+  .container { max-width: 1120px; margin: 0 auto; }
+  .container-md { max-width: 860px; margin: 0 auto; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--color-accent); background: var(--color-accent-light);
+    padding: 4px 10px; border-radius: 99px; margin-bottom: 20px;
+  }
+  .section-heading { text-align: center; margin-bottom: 56px; }
+  .section-heading h2 {
+    font-size: clamp(28px, 4vw, 44px); font-weight: 800;
+    letter-spacing: -0.03em; color: var(--color-text-primary); margin-bottom: 12px; line-height: 1.1;
+  }
+  .section-heading p { font-size: 17px; color: var(--color-text-tertiary); line-height: 1.65; }
+
+  /* BUTTONS */
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--color-accent); color: #fff;
+    font-size: 15px; font-weight: 600; padding: 14px 26px;
+    border-radius: var(--radius-md); border: none; cursor: pointer; text-decoration: none;
+    transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+    box-shadow: 0 4px 18px rgba(8,145,178,0.38);
+  }
+  .btn-primary:hover { background: #0ea5c9; transform: translateY(-2px); box-shadow: 0 8px 28px rgba(8,145,178,0.48); }
+  .btn-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.75);
+    font-size: 15px; font-weight: 500; padding: 14px 22px;
+    border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.15);
+    cursor: pointer; text-decoration: none; transition: all var(--transition);
+  }
+  .btn-secondary:hover { border-color: rgba(255,255,255,0.35); color: #fff; background: rgba(255,255,255,0.14); }
+  .btn-outline {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: transparent; color: var(--color-text-primary);
+    font-size: 14px; font-weight: 600; padding: 12px 20px;
+    border-radius: var(--radius-md); border: 1px solid var(--color-border);
+    cursor: pointer; text-decoration: none; transition: all var(--transition); width: 100%;
+  }
+  .btn-outline:hover { border-color: var(--color-text-primary); }
+  .btn-accent {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--color-accent); color: #fff;
+    font-size: 14px; font-weight: 600; padding: 12px 20px;
+    border-radius: var(--radius-md); border: none; cursor: pointer;
+    text-decoration: none; transition: all var(--transition); width: 100%;
+    box-shadow: 0 4px 16px rgba(8,145,178,0.3);
+  }
+  .btn-accent:hover { background: var(--color-accent-hover); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(8,145,178,0.45); }
+
+  /* ── HERO ── */
+  .hero {
+    background: #07080c; padding: 130px 24px 0;
+    text-align: center; position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute;
+    top: -120px; left: 50%; transform: translateX(-50%);
+    width: 1000px; height: 700px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(8,145,178,0.22) 0%, rgba(8,145,178,0.05) 45%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(8,145,178,0.1); border: 1px solid rgba(8,145,178,0.28);
+    border-radius: 99px; padding: 7px 16px 7px 10px;
+    font-size: 13px; color: rgba(255,255,255,0.65); margin-bottom: 38px;
+    box-shadow: 0 0 24px rgba(8,145,178,0.12);
+    animation: fadeUp 0.5s ease both;
+  }
+  .hero-badge-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.25), 0 0 0 6px rgba(34,197,94,0.1);
+  }
+  .hero h1 {
+    font-size: clamp(56px, 9vw, 104px); font-weight: 900; line-height: 0.95;
+    letter-spacing: -0.045em; color: #fff;
+    max-width: 880px; margin: 0 auto 26px;
+    animation: fadeUp 0.55s ease 0.08s both;
+  }
+  .hero h1 em {
+    font-style: normal;
+    background: linear-gradient(130deg, #38bdf8 0%, #0891b2 60%, #0e7490 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .hero-sub {
+    font-size: 18px; color: rgba(255,255,255,0.48);
+    max-width: 500px; margin: 0 auto 44px; line-height: 1.65;
+    animation: fadeUp 0.55s ease 0.16s both;
+  }
+  .hero-actions {
+    display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+    animation: fadeUp 0.55s ease 0.22s both; margin-bottom: 12px;
+  }
+  .hero-note {
+    font-size: 12px; color: rgba(255,255,255,0.25); margin-bottom: 60px;
+    animation: fadeUp 0.55s ease 0.28s both;
+  }
+  .hero-video-wrap {
+    max-width: 1040px; margin: 0 auto;
+    animation: fadeUp 0.8s ease 0.35s both;
+  }
+  .hero-video-chrome {
+    background: #111318; border-radius: 14px 14px 0 0;
+    padding: 10px 14px 0; border: 1px solid rgba(255,255,255,0.08); border-bottom: none;
+  }
+  .hero-video-bar { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+  .hv-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .hv-dot-r { background: #ff5f57; } .hv-dot-y { background: #ffbd2e; } .hv-dot-g { background: #28c840; }
+  .hv-title { flex: 1; text-align: center; font-size: 11px; color: rgba(255,255,255,0.25); font-weight: 500; }
+  .hero-video { display: block; width: 100%; max-height: 580px; object-fit: cover; object-position: top; }
+  .hero-fade { height: 100px; background: linear-gradient(to bottom, #07080c, var(--color-bg)); margin-top: -2px; }
+
+  /* ── PAIN / SOLUTION ── */
+  .pain-section { padding: 80px 24px; background: var(--color-surface); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+  .pain-intro { text-align: center; margin-bottom: 52px; }
+  .pain-intro h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; color: var(--color-text-primary); margin-bottom: 12px; }
+  .pain-intro p { font-size: 17px; color: var(--color-text-tertiary); line-height: 1.65; }
+  .pain-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 860px; margin: 0 auto 48px; }
+  .pain-col { border-radius: var(--radius-xl); padding: 32px 36px; }
+  .pain-col.before { background: #fdf5f5; border: 1px solid rgba(239,68,68,0.14); }
+  .pain-col.after { background: #f0fdfc; border: 1px solid rgba(8,145,178,0.18); }
+  .pain-col-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .pain-col.before .pain-col-label { color: #ef4444; }
+  .pain-col.after .pain-col-label { color: var(--color-accent); }
+  .pain-items { display: flex; flex-direction: column; gap: 13px; }
+  .pain-item { display: flex; align-items: flex-start; gap: 11px; font-size: 14px; color: var(--color-text-secondary); line-height: 1.55; }
+  .pain-x, .pain-check { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; margin-top: 1px; }
+  .pain-x { background: #fee2e2; color: #ef4444; }
+  .pain-check { background: #cffafe; color: #0891b2; }
+  .pain-kicker { text-align: center; font-size: clamp(24px, 3.5vw, 38px); font-weight: 800; letter-spacing: -0.03em; color: var(--color-text-primary); line-height: 1.2; }
+  .pain-kicker em { font-style: normal; background: linear-gradient(130deg, #38bdf8, #0891b2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+  /* ── LOGO STRIP ── */
+  .logo-strip { padding: 28px 24px; border-bottom: 1px solid var(--color-border); background: var(--color-bg); }
+  .logo-strip-inner { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; gap: 40px; justify-content: center; flex-wrap: wrap; }
+  .strip-label { font-size: 11px; font-weight: 500; color: var(--color-text-quaternary); letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
+  .brand-chip { font-size: 14px; font-weight: 600; color: var(--color-text-quaternary); }
+
+  /* ── STATS ROW ── */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--color-border); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
+  .stat-cell { background: var(--color-surface); padding: 32px 28px; display: flex; flex-direction: column; gap: 6px; }
+  .stat-num { font-size: 40px; font-weight: 900; letter-spacing: -0.04em; color: var(--color-text-primary); line-height: 1; }
+  .stat-num.accent { color: var(--color-accent); }
+  .stat-desc { font-size: 13px; color: var(--color-text-tertiary); line-height: 1.45; }
+
+  /* ── VIDEO SHOWCASE ── */
+  .video-section { background: var(--color-bg-alt); }
+  .showcase-wrap { border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-xl), 0 0 0 1px rgba(0,0,0,0.06); }
+  .showcase-chrome { background: #1a1d26; padding: 10px 14px 0; display: flex; align-items: center; gap: 8px; }
+  .showcase-video { display: block; width: 100%; }
+
+  /* ── FEATURE WALL ── */
+  .feature-wall { display: grid; grid-template-columns: 300px 1fr; min-height: 520px; background: var(--color-surface); border-radius: var(--radius-xl); border: 1px solid var(--color-border); overflow: hidden; box-shadow: var(--shadow-md); }
+  .fw-list { padding: 20px 12px; border-right: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 2px; background: var(--color-bg); }
+  .fw-list-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-quaternary); padding: 4px 12px 10px; }
+  .fw-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); border: 1px solid transparent; background: transparent; text-align: left; width: 100%; }
+  .fw-item:hover { background: var(--color-surface); border-color: var(--color-border); }
+  .fw-item.active { background: var(--color-surface); border-color: var(--color-border); box-shadow: var(--shadow-sm); }
+  .fw-icon { width: 32px; height: 32px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; background: var(--color-bg-alt); transition: background var(--transition); }
+  .fw-item.active .fw-icon { background: var(--color-accent-light); }
+  .fw-texts { display: flex; flex-direction: column; gap: 2px; }
+  .fw-title { font-size: 13px; font-weight: 600; color: var(--color-text-secondary); transition: color var(--transition); line-height: 1.3; }
+  .fw-item.active .fw-title { color: var(--color-text-primary); }
+  .fw-sub { font-size: 12px; color: var(--color-text-quaternary); line-height: 1.4; }
+  .fw-item.active .fw-sub { color: var(--color-text-tertiary); }
+  .fw-panel-area { padding: 36px 40px; display: flex; flex-direction: column; gap: 20px; }
+  .fw-panel { display: none; flex-direction: column; gap: 20px; }
+  .fw-panel.active { display: flex; animation: fadeIn 0.22s ease both; }
+  .fw-panel-title { font-size: 22px; font-weight: 700; color: var(--color-text-primary); letter-spacing: -0.02em; }
+  .fw-panel-desc { font-size: 14px; color: var(--color-text-tertiary); line-height: 1.7; max-width: 460px; }
+  .fw-panel-mock { background: var(--color-app-bg); border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.06); flex: 1; min-height: 240px; position: relative; overflow: hidden; box-shadow: var(--shadow-md); }
+
+  /* Panel mockup internals */
+  .pmock-compare { width: 100%; height: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+  .pmock-half { position: relative; overflow: hidden; }
+  .pmock-half + .pmock-half { border-left: 2px solid rgba(8,145,178,0.6); }
+  .plabel { position: absolute; top: 8px; left: 8px; font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.55); background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.06em; z-index: 2; }
+  .pmock-map { width: 100%; height: 100%; background: linear-gradient(135deg,#0a1020,#0d1628,#0a1420); position: relative; }
+  .pmock-map::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(8,145,178,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(8,145,178,0.07) 1px, transparent 1px); background-size: 28px 28px; }
+  .pmock-timeline { width: 100%; height: 100%; padding: 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+  .tl-row { display: flex; align-items: center; gap: 8px; }
+  .tl-date { font-size: 9px; color: rgba(255,255,255,0.38); width: 65px; text-align: right; }
+  .tl-track { flex: 1; height: 9px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; }
+  .tl-bar { height: 100%; border-radius: 99px; }
+  .tl-val { font-size: 9px; font-weight: 600; width: 46px; text-align: right; }
+  .pmock-tags { width: 100%; height: 100%; padding: 14px; display: flex; flex-wrap: wrap; gap: 7px; align-content: flex-start; overflow: hidden; }
+  .ai-tag { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.07); padding: 5px 10px; border-radius: 99px; font-size: 10px; color: rgba(255,255,255,0.65); font-weight: 500; }
+  .td { width: 5px; height: 5px; border-radius: 50%; }
+  .pmock-notes { width: 100%; height: 100%; padding: 14px; display: flex; flex-direction: column; gap: 7px; overflow: hidden; }
+  .note-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 7px; padding: 9px 11px; }
+  .note-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .note-title { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.7); }
+  .note-time { font-size: 9px; color: rgba(255,255,255,0.3); margin-left: auto; }
+  .note-body { font-size: 9px; color: rgba(255,255,255,0.38); line-height: 1.5; }
+  .pmock-export { width: 100%; height: 100%; padding: 14px; display: flex; flex-direction: column; gap: 7px; overflow: hidden; }
+  .exp-item { display: flex; align-items: center; gap: 9px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 7px; padding: 9px 11px; }
+  .exp-icon { font-size: 16px; }
+  .exp-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .exp-name { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.7); }
+  .exp-size { font-size: 9px; color: rgba(255,255,255,0.3); }
+
+  /* App mockup (sidebar map view) */
+  .mockup-chrome { max-width: 960px; margin: 0 auto; background: #1a1d26; border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-xl), 0 0 0 1px rgba(255,255,255,0.06); }
+  .mockup-bar { background: #13151c; height: 36px; display: flex; align-items: center; padding: 0 16px; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; } .dot-y { background: #ffbd2e; } .dot-g { background: #28c840; }
+  .mockup-body { background: #0c0e14; aspect-ratio: 16/9; display: grid; grid-template-columns: 200px 1fr; }
+  .app-sidebar { background: #10121a; border-right: 1px solid rgba(255,255,255,0.06); padding: 14px 10px; display: flex; flex-direction: column; gap: 3px; }
+  .sb-logo { display: flex; align-items: center; gap: 7px; padding: 6px 8px 14px; margin-bottom: 2px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .sb-logo span { color: #fff; font-size: 12px; font-weight: 600; }
+  .sb-item { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 5px; cursor: pointer; }
+  .sb-item.active { background: rgba(8,145,178,0.16); }
+  .sb-item svg { width: 13px; height: 13px; opacity: 0.5; color: rgba(255,255,255,0.8); }
+  .sb-item.active svg { opacity: 1; color: #0891b2; }
+  .sb-item span { font-size: 11px; color: rgba(255,255,255,0.45); font-weight: 500; }
+  .sb-item.active span { color: rgba(255,255,255,0.85); }
+  .app-right { display: flex; flex-direction: column; }
+  .app-topbar { height: 40px; background: #0c0e14; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; padding: 0 14px; gap: 10px; }
+  .app-topbar-title { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); }
+  .sep { flex: 1; }
+  .chip { font-size: 10px; color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.06); padding: 2px 7px; border-radius: 4px; }
+  .app-panels { flex: 1; display: grid; grid-template-columns: 1fr 1fr; }
+  .app-panel { position: relative; overflow: hidden; background: #080a10; }
+  .app-panel + .app-panel { border-left: 2px solid rgba(8,145,178,0.28); }
+  .panel-label { position: absolute; top: 8px; left: 8px; z-index: 2; font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.45); background: rgba(0,0,0,0.55); padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .map-bg { width: 100%; height: 100%; background: linear-gradient(135deg, #0a1020, #0d1628, #0a1420); position: relative; }
+  .map-bg::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(8,145,178,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(8,145,178,0.07) 1px, transparent 1px); background-size: 36px 36px; }
+  .map-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(8,145,178,0.25); transform: translate(-50%,-50%); }
+  .map-dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; }
+  .dot-cyan { background: #0891b2; box-shadow: 0 0 0 3px rgba(8,145,178,0.3); }
+  .dot-red { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.3); }
+  .dot-green { background: #22c55e; box-shadow: 0 0 0 6px rgba(34,197,94,0.15), 0 0 0 11px rgba(34,197,94,0.08); }
+  .stats-bar { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(10,12,20,0.92); backdrop-filter: blur(8px); padding: 7px 10px; display: flex; gap: 14px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .sp { display: flex; flex-direction: column; gap: 1px; }
+  .sl { font-size: 8px; color: rgba(255,255,255,0.32); text-transform: uppercase; letter-spacing: 0.06em; }
+  .sv { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.8); }
+  .sv.g { color: #22c55e; } .sv.r { color: #ef4444; }
+
+  /* STEPS */
+  .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--color-border); border: 1px solid var(--color-border); border-radius: var(--radius-xl); overflow: hidden; }
+  .step-cell { background: var(--color-surface); padding: 36px 28px; }
+  .step-num { font-size: 11px; font-weight: 600; color: var(--color-accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .step-num::after { content: ''; flex: 1; height: 1px; background: var(--color-accent-light); }
+  .step-icon { font-size: 28px; margin-bottom: 14px; }
+  .step-title { font-size: 17px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step-desc { font-size: 14px; color: var(--color-text-tertiary); line-height: 1.65; }
+
+  /* USE CASES */
+  .use-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .use-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: 32px; position: relative; overflow: hidden; transition: box-shadow var(--transition), transform var(--transition); }
+  .use-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--ca), var(--cb)); }
+  .use-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .use-icon { font-size: 26px; margin-bottom: 14px; }
+  .use-title { font-size: 17px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 8px; letter-spacing: -0.01em; }
+  .use-desc { font-size: 14px; color: var(--color-text-tertiary); line-height: 1.65; }
+  .use-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+  .tag { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); background: var(--color-bg-alt); padding: 3px 8px; border-radius: 4px; }
+
+  /* PRICING */
+  .price-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 48px; }
+  .price-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: 28px; display: flex; flex-direction: column; gap: 20px; position: relative; transition: box-shadow var(--transition), transform var(--transition); }
+  .price-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-3px); }
+  .price-card.featured { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent), var(--shadow-md); }
+  .price-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--color-accent); color: #fff; font-size: 10px; font-weight: 600; padding: 3px 12px; border-radius: 99px; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+  .price-tier { font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
+  .price-blurb { font-size: 13px; color: var(--color-text-tertiary); line-height: 1.45; }
+  .price-amount { display: flex; align-items: baseline; gap: 3px; }
+  .price-cur { font-size: 17px; font-weight: 700; color: var(--color-text-secondary); }
+  .price-val { font-size: 44px; font-weight: 800; letter-spacing: -0.04em; color: var(--color-text-primary); }
+  .price-period { font-size: 13px; color: var(--color-text-quaternary); }
+  .price-hr { border: none; border-top: 1px solid var(--color-border); }
+  .price-feats { display: flex; flex-direction: column; gap: 9px; flex: 1; }
+  .pf { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--color-text-secondary); }
+  .pf-check { width: 17px; height: 17px; border-radius: 50%; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; margin-top: 1px; }
+
+  /* CTA BANNER */
+  .cta-banner {
+    background: #07080c; border-radius: var(--radius-xl);
+    padding: 76px 48px; display: flex; flex-direction: column;
+    align-items: center; text-align: center; gap: 22px;
+    position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.07);
+  }
+  .cta-banner::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse 70% 80% at 80% 50%, rgba(8,145,178,0.2) 0%, transparent 60%),
+                radial-gradient(ellipse 70% 80% at 20% 50%, rgba(8,145,178,0.12) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .cta-banner h2 { font-size: clamp(28px, 4.5vw, 48px); font-weight: 900; color: #fff; letter-spacing: -0.04em; line-height: 0.97; max-width: 480px; }
+  .cta-banner p { font-size: 15px; color: rgba(255,255,255,0.42); max-width: 400px; }
+  .cta-banner-note { font-size: 12px; color: rgba(255,255,255,0.22); }
+
+  /* FOOTER */
+  .footer { padding: 44px 24px 28px; border-top: 1px solid var(--color-border); background: var(--color-surface); }
+  .footer-inner { max-width: 1120px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+  .footer-left { display: flex; flex-direction: column; gap: 6px; }
+  .footer-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; cursor: pointer; }
+  .footer-logo img { height: 20px; }
+  .footer-copy { font-size: 12px; color: var(--color-text-quaternary); }
+  .footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
+  .footer-link { font-size: 13px; color: var(--color-text-tertiary); text-decoration: none; transition: color var(--transition); }
+  .footer-link:hover { color: var(--color-text-primary); }
+
+  /* ── ACCOUNT PAGE ── */
+  .auth-tabs { display: flex; gap: 2px; background: var(--color-bg-alt); border-radius: var(--radius-md); padding: 3px; margin-bottom: 28px; }
+  .auth-tab { flex: 1; padding: 10px 16px; font-size: 14px; font-weight: 600; border: none; background: transparent; color: var(--color-text-tertiary); border-radius: calc(var(--radius-md) - 2px); cursor: pointer; transition: all var(--transition); }
+  .auth-tab.active { background: var(--color-surface); color: var(--color-text-primary); box-shadow: var(--shadow-sm); }
+  .auth-panel { display: none; }
+  .auth-panel.active { display: block; }
+  .auth-form { display: flex; flex-direction: column; gap: 14px; }
+  .auth-input { width: 100%; padding: 12px 16px; font-size: 14px; font-family: inherit; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); transition: border-color var(--transition); outline: none; }
+  .auth-input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(8,145,178,0.12); }
+  .auth-input::placeholder { color: var(--color-text-quaternary); }
+  .auth-msg { margin-top: 16px; padding: 12px 16px; border-radius: var(--radius-md); font-size: 13px; line-height: 1.5; display: none; }
+  .auth-msg.error { display: block; background: #fef2f2; border: 1px solid rgba(239,68,68,0.2); color: #dc2626; }
+  .auth-msg.success { display: block; background: #f0fdf4; border: 1px solid rgba(34,197,94,0.2); color: #16a34a; }
+  .auth-msg.info { display: block; background: var(--color-accent-light); border: 1px solid rgba(8,145,178,0.2); color: #0e7490; }
+  .auth-heading { text-align: center; margin-bottom: 32px; }
+  .auth-heading h2 { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 8px; }
+  .auth-heading p { font-size: 15px; color: var(--color-text-tertiary); }
+  .acct-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; gap: 16px; flex-wrap: wrap; }
+  .acct-header h2 { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; }
+  .acct-header p { font-size: 14px; color: var(--color-text-tertiary); margin-top: 2px; }
+  .acct-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: 28px; margin-bottom: 20px; }
+  .acct-card h3 { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-text-quaternary); margin-bottom: 20px; }
+  .acct-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--color-border); font-size: 14px; }
+  .acct-row:last-child { border-bottom: none; }
+  .acct-label { color: var(--color-text-tertiary); }
+  .acct-value { font-weight: 600; color: var(--color-text-primary); }
+  .acct-value.trial { color: #f59e0b; }
+  .acct-value.active { color: #22c55e; }
+  .acct-value.expired { color: #ef4444; }
+  .acct-key { font-family: 'SF Mono', 'Fira Code', monospace; background: var(--color-bg-alt); padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer; transition: background var(--transition); font-size: 13px; }
+  .acct-key:hover { background: var(--color-accent-light); }
+  .acct-download { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: 28px; text-align: center; }
+  .acct-download h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .acct-download p { font-size: 14px; color: var(--color-text-tertiary); margin-bottom: 16px; }
+  .acct-download .btn-primary { display: inline-flex; }
+  .acct-note { font-size: 12px; color: var(--color-text-quaternary); margin-top: 12px; }
+  .acct-verify { text-align: center; max-width: 440px; margin: 0 auto; }
+  .acct-verify h2 { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 12px; }
+  .acct-verify p { font-size: 15px; color: var(--color-text-tertiary); line-height: 1.6; margin-bottom: 24px; }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+  .reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.55s ease, transform 0.55s ease; transition-delay: var(--delay, 0ms); }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .mockup-body { grid-template-columns: 1fr; }
+    .app-sidebar { display: none; }
+    .feature-wall { grid-template-columns: 1fr; }
+    .fw-list { display: grid; grid-template-columns: repeat(2,1fr); border-right: none; border-bottom: 1px solid var(--color-border); }
+    .stats-row { grid-template-columns: repeat(2,1fr); }
+    .price-grid { grid-template-columns: repeat(2, 1fr); max-width: 600px; margin-left: auto; margin-right: auto; }
+    .steps-grid { grid-template-columns: 1fr; }
+    .use-grid { grid-template-columns: 1fr; }
+    .pain-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .nav-links { display: none; }
+    .price-grid { grid-template-columns: 1fr; max-width: 380px; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .cta-banner { padding: 40px 20px; }
+    .hero { padding: 100px 20px 0; }
+    .hero h1 { font-size: clamp(44px, 12vw, 72px); }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-logo" onclick="showPage('home')">
+      <img src="data:image/png;base64,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" alt="SkySync">
+      <span class="nav-logo-name">SkySync</span>
+    </div>
+    <div class="nav-links">
+      <button class="nav-link" onclick="showPage('features')">Features</button>
+      <button class="nav-link" onclick="showPage('how-it-works')">How it works</button>
+      <button class="nav-link" onclick="showPage('use-cases')">Use cases</button>
+      <button class="nav-link" onclick="showPage('pricing')">Pricing</button>
+    </div>
+    <button class="nav-link" id="nav-account-link" onclick="showPage('account')" style="display:none">Account</button>
+    <div id="nav-cta-signup" onclick="showPage('account')" class="nav-cta" style="cursor:pointer">Sign Up Free</div>
+  </div>
+</nav>
+
+<!-- ═══ HOME ═══ -->
+<div class="page active" id="page-home">
+
+  <section class="hero">
+    <div class="hero-badge"><div class="hero-badge-dot"></div>7-day trial &nbsp;·&nbsp; no card required &nbsp;·&nbsp; 100% offline</div>
+    <h1>Every frame,<br><em>on the map.</em></h1>
+    <p class="hero-sub">Drop in your footage. SkySync reads the GPS, syncs the video to the map, and links everything to your asset data — automatically.</p>
+    <div class="hero-actions">
+      <div class="btn-primary" style="cursor:pointer" onclick="showPage('account')">
+        Start free trial
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7h12M8 3l5 4-5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="btn-secondary" style="cursor:pointer" onclick="showPage('features')">See all features</div>
+    </div>
+    <p class="hero-note">Know what you captured before you leave the site.</p>
+    <div class="hero-video-wrap">
+      <div class="hero-video-chrome">
+        <div class="hero-video-bar">
+          <div class="hv-dot hv-dot-r"></div><div class="hv-dot hv-dot-y"></div><div class="hv-dot hv-dot-g"></div>
+          <div class="hv-title">SkySync — Waiho River 2024-07-15 · Split V</div>
+        </div>
+      </div>
+      <video class="hero-video" src="videos/demo1-map-sync.mp4" autoplay loop muted playsinline></video>
+    </div>
+  </section>
+
+  <div class="hero-fade"></div>
+
+  <div class="logo-strip">
+    <div class="logo-strip-inner">
+      <span class="strip-label">Used by operators at</span>
+      <div style="display:flex;gap:36px;flex-wrap:wrap;align-items:center;justify-content:center">
+        <span class="brand-chip">West Coast RC</span>
+        <span class="brand-chip">Tonkin + Taylor</span>
+        <span class="brand-chip">GHD</span>
+        <span class="brand-chip">WSP</span>
+        <span class="brand-chip">Beca</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAIN / SOLUTION -->
+  <section class="pain-section">
+    <div class="container">
+      <div class="pain-intro reveal">
+        <div class="eyebrow">The problem</div>
+        <h2>How it used to work</h2>
+        <p>40 minutes of footage. No idea where anything is.</p>
+      </div>
+      <div class="pain-grid reveal" style="--delay:100ms">
+        <div class="pain-col before">
+          <div class="pain-col-label">Without SkySync</div>
+          <div class="pain-items">
+            <div class="pain-item"><span class="pain-x">✕</span>Land. 40 minutes of footage on the card. No spatial context whatsoever.</div>
+            <div class="pain-item"><span class="pain-x">✕</span>Scrub manually to find the thing you saw from the air.</div>
+            <div class="pain-item"><span class="pain-x">✕</span>Screenshot it. Write the GPS from memory. Probably wrong.</div>
+            <div class="pain-item"><span class="pain-x">✕</span>Try to compare with last year. Open three apps. Nothing aligns.</div>
+            <div class="pain-item"><span class="pain-x">✕</span>Leave the site still not sure what you actually found.</div>
+          </div>
+        </div>
+        <div class="pain-col after">
+          <div class="pain-col-label">With SkySync</div>
+          <div class="pain-items">
+            <div class="pain-item"><span class="pain-check">✓</span>Land. Drop the files. GPS syncs to the video automatically.</div>
+            <div class="pain-item"><span class="pain-check">✓</span>Click any point on the map. Jump to that exact frame.</div>
+            <div class="pain-item"><span class="pain-check">✓</span>Flag it — GPS-pinned, timestamped, tied to your asset register.</div>
+            <div class="pain-item"><span class="pain-check">✓</span>Pull up last year's survey. Sync both. See exactly what changed.</div>
+            <div class="pain-item"><span class="pain-check">✓</span>Leave the site with a timestamped report in hand.</div>
+          </div>
+        </div>
+      </div>
+      <div class="pain-kicker reveal" style="--delay:200ms">40 minutes of footage. <em>3 clicks to the problem.</em></div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="section-sm" style="background:var(--color-surface)">
+    <div class="container">
+      <div class="stats-row reveal">
+        <div class="stat-cell">
+          <div class="stat-num accent">2 min</div>
+          <div class="stat-desc">From dropped files to full spatial context</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num">100%</div>
+          <div class="stat-desc">Offline — your data never leaves your machine</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num">5+</div>
+          <div class="stat-desc">Data connectors — REST, CSV, GeoJSON, ArcGIS, WFS</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num">7-day</div>
+          <div class="stat-desc">Full-feature trial. No card, no setup.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIDEO SHOWCASE -->
+  <section class="video-section section">
+    <div class="container">
+      <div class="section-heading reveal">
+        <div class="eyebrow">In action</div>
+        <h2>See it run</h2>
+        <p>The real app. Real survey footage. Not a screen grab.</p>
+      </div>
+      <div class="showcase-wrap reveal" style="--delay:100ms">
+        <div class="showcase-chrome">
+          <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+        </div>
+        <video class="showcase-video" src="videos/demo2-modes.mp4" controls loop muted playsinline></video>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA BANNER -->
+  <section class="section">
+    <div class="container">
+      <div class="cta-banner reveal">
+        <h2>Stop scrubbing.<br>Start knowing.</h2>
+        <p>Every flight, every flag, every comparison — mapped and timestamped. Ready when you are.</p>
+        <div class="btn-primary" style="cursor:pointer;font-size:16px;padding:15px 32px" onclick="showPage('account')">
+          Start your 7-day trial
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7h12M8 3l5 4-5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="cta-banner-note">No card required &nbsp;·&nbsp; No cloud upload &nbsp;·&nbsp; Binds to your machine on first activation</div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /home -->
+
+
+<!-- ═══ FEATURES ═══ -->
+<div class="page" id="page-features">
+  <section class="section">
+    <div class="container">
+      <div class="section-heading">
+        <div class="eyebrow">Features</div>
+        <h2>Everything you need to make sense of a flight</h2>
+        <p>Six focused tools. No bloat. Each one built around what a field operator actually needs when they land.</p>
+      </div>
+      <div class="feature-wall reveal">
+        <div class="fw-list">
+          <div class="fw-list-label">Modes</div>
+          <button class="fw-item active" onclick="activateFeature(this,'compare')">
+            <div class="fw-icon">⚖️</div>
+            <div class="fw-texts"><div class="fw-title">Side-by-side compare</div><div class="fw-sub">Was it worse last year?</div></div>
+          </button>
+          <button class="fw-item" onclick="activateFeature(this,'timeline')">
+            <div class="fw-icon">📅</div>
+            <div class="fw-texts"><div class="fw-title">Change timeline</div><div class="fw-sub">How did this site evolve?</div></div>
+          </button>
+          <button class="fw-item" onclick="activateFeature(this,'tags')">
+            <div class="fw-icon">🏷️</div>
+            <div class="fw-texts"><div class="fw-title">AI scene tagging</div><div class="fw-sub">What's in this footage?</div></div>
+          </button>
+          <button class="fw-item" onclick="activateFeature(this,'notes')">
+            <div class="fw-icon">📌</div>
+            <div class="fw-texts"><div class="fw-title">Timestamped notes</div><div class="fw-sub">Click the frame, flag the problem</div></div>
+          </button>
+          <button class="fw-item" onclick="activateFeature(this,'export')">
+            <div class="fw-icon">📤</div>
+            <div class="fw-texts"><div class="fw-title">Report export</div><div class="fw-sub">Brief to deliverable in minutes</div></div>
+          </button>
+        </div>
+        <div class="fw-panel-area">
+          <div class="fw-panel active" id="fw-compare">
+            <div class="eyebrow">Compare</div>
+            <div class="fw-panel-title">Two runs. One screen. Perfectly synced.</div>
+            <div class="fw-panel-desc">Load any two flights over the same area and scrub through them in sync. Map positions lock to each other — you see what changed, exactly where, without any manual alignment. Pull up January next to July in three clicks.</div>
+            <div class="fw-panel-mock">
+              <div class="pmock-compare">
+                <div class="pmock-half"><div class="plabel">Jan 2024</div><div class="pmock-map"><div class="map-ring" style="width:65%;height:55%;top:50%;left:48%"></div></div></div>
+                <div class="pmock-half"><div class="plabel">Jul 2024</div><div class="pmock-map" style="background:linear-gradient(135deg,#0a1018,#0c1625,#0a121e)"><div class="map-ring" style="width:80%;height:65%;top:52%;left:50%;border-color:rgba(34,197,94,0.3)"></div><div class="map-ring" style="width:50%;height:40%;top:48%;left:52%;border-color:rgba(34,197,94,0.2)"></div></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="fw-panel" id="fw-timeline">
+            <div class="eyebrow">Timeline</div>
+            <div class="fw-panel-title">Every flight. One history.</div>
+            <div class="fw-panel-desc">Bring your own flights — or pull from a REST server or shared drive. SkySync builds a chronological record. Net change, trend direction, the outlier survey that doesn't add up — visible immediately.</div>
+            <div class="fw-panel-mock">
+              <div class="pmock-timeline">
+                <div class="tl-row"><div class="tl-date">2019-Nov</div><div class="tl-track"><div class="tl-bar" style="width:45%;background:#6b7280"></div></div><div class="tl-val" style="color:#6b7280">baseline</div></div>
+                <div class="tl-row"><div class="tl-date">2020-Mar</div><div class="tl-track"><div class="tl-bar" style="width:38%;background:#ef4444"></div></div><div class="tl-val" style="color:#ef4444">−0.82 m</div></div>
+                <div class="tl-row"><div class="tl-date">2023-Jul</div><div class="tl-track"><div class="tl-bar" style="width:52%;background:#22c55e"></div></div><div class="tl-val" style="color:#22c55e">+0.34 m</div></div>
+                <div class="tl-row"><div class="tl-date">2024-Jan</div><div class="tl-track"><div class="tl-bar" style="width:60%;background:#f59e0b"></div></div><div class="tl-val" style="color:#f59e0b">+0.61 m</div></div>
+                <div class="tl-row"><div class="tl-date">2024-Jul</div><div class="tl-track"><div class="tl-bar" style="width:68%;background:#0891b2"></div></div><div class="tl-val" style="color:#0891b2">+0.45 m</div></div>
+                <div class="tl-row"><div class="tl-date">2025-Mar</div><div class="tl-track"><div class="tl-bar" style="width:76%;background:#ef4444"></div></div><div class="tl-val" style="color:#ef4444">+1.12 m</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="fw-panel" id="fw-tags">
+            <div class="eyebrow">AI Tagging</div>
+            <div class="fw-panel-title">It knows what it's looking at. Do you?</div>
+            <div class="fw-panel-desc">40 minutes of footage and no idea which clip has the damaged culvert? Scene tagging reads the footage and labels it — structure type, damage indicators, water presence, access issues. Filter by tag, jump to the frame, clip and export.</div>
+            <div class="fw-panel-mock">
+              <div class="pmock-tags">
+                <div class="ai-tag"><div class="td" style="background:#ef4444"></div>Erosion detected</div>
+                <div class="ai-tag"><div class="td" style="background:#f59e0b"></div>Riprap visible</div>
+                <div class="ai-tag"><div class="td" style="background:#0891b2"></div>Water present</div>
+                <div class="ai-tag"><div class="td" style="background:#22c55e"></div>Bridge structure</div>
+                <div class="ai-tag"><div class="td" style="background:#8b5cf6"></div>Road access</div>
+                <div class="ai-tag"><div class="td" style="background:#ef4444"></div>Scour hole</div>
+                <div class="ai-tag"><div class="td" style="background:#0891b2"></div>Culvert inlet</div>
+                <div class="ai-tag"><div class="td" style="background:#22c55e"></div>Vegetation change</div>
+                <div class="ai-tag"><div class="td" style="background:#f59e0b"></div>Gravel bar active</div>
+              </div>
+            </div>
+          </div>
+          <div class="fw-panel" id="fw-notes">
+            <div class="eyebrow">Notes</div>
+            <div class="fw-panel-title">Click the frame. Flag the problem.</div>
+            <div class="fw-panel-desc">Pause the video, click Add Note, and your observation links to that exact GPS coordinate and timestamp. When you generate the report, every note becomes a referenced figure — location, time, condition, comment — automatically laid out.</div>
+            <div class="fw-panel-mock">
+              <div class="pmock-notes">
+                <div class="note-card"><div class="note-header"><span>📍</span><div class="note-title">Active scour — left bank</div><div class="note-time">14:23.4</div></div><div class="note-body">Estimated 0.8 m undercut. Monitor for progression. Engineering assessment required before next high flow event.</div></div>
+                <div class="note-card"><div class="note-header"><span>⚠️</span><div class="note-title">Bridge abutment — crack visible</div><div class="note-time">22:07.1</div></div><div class="note-body">Longitudinal crack, approx 4 m. Not present Jan 2024. Refer to structural engineer.</div></div>
+                <div class="note-card"><div class="note-header"><span>✅</span><div class="note-title">Riprap intact — reach B mid</div><div class="note-time">31:55.9</div></div><div class="note-body">No displacement. Rock size consistent with design spec. No maintenance required.</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="fw-panel" id="fw-export">
+            <div class="eyebrow">Export</div>
+            <div class="fw-panel-title">From field notes to deliverable in minutes.</div>
+            <div class="fw-panel-desc">Your flags, screenshots, notes, and comparison frames compile into a structured report. Choose what to include, add your org header, export as PDF or shareable HTML. No reformatting. No copy-paste from six tools.</div>
+            <div class="fw-panel-mock">
+              <div class="pmock-export">
+                <div class="exp-item"><div class="exp-icon">📄</div><div class="exp-info"><div class="exp-name">Waiho-Inspection-2024-07.pdf</div><div class="exp-size">2.4 MB · 18 pages · 14 figures</div></div><span style="font-size:14px">✅</span></div>
+                <div class="exp-item"><div class="exp-icon">🌐</div><div class="exp-info"><div class="exp-name">Waiho-Inspection-2024-07.html</div><div class="exp-size">Interactive · shareable · 1.1 MB</div></div><span style="font-size:14px">✅</span></div>
+                <div class="exp-item"><div class="exp-icon">📦</div><div class="exp-info"><div class="exp-name">raw-clips-flagged.zip</div><div class="exp-size">14 clips · timestamped filenames</div></div><span style="font-size:14px">✅</span></div>
+                <div class="exp-item"><div class="exp-icon">🗺️</div><div class="exp-info"><div class="exp-name">observations.geojson</div><div class="exp-size">NZTM2000 · 34 features</div></div><span style="font-size:14px">✅</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div><!-- /features -->
+
+
+<!-- ═══ HOW IT WORKS ═══ -->
+<div class="page" id="page-how-it-works">
+  <section class="section">
+    <div class="container">
+      <div class="section-heading">
+        <div class="eyebrow">How it works</div>
+        <h2>Spatial awareness in seconds</h2>
+        <p>No geospatial degree required. No IT setup. Three steps from raw footage to a full picture of your site.</p>
+      </div>
+      <div class="steps-grid reveal">
+        <div class="step-cell">
+          <div class="step-num">01</div>
+          <div class="step-icon">📂</div>
+          <div class="step-title">Drop in your files</div>
+          <div class="step-desc">Drag your DJI footage folder straight into SkySync. It reads the embedded GPS, timestamps, and telemetry directly from the files — no conversion, no pre-processing. MP4, MOV, LAS/LAZ from any drone that logs GPS.</div>
+        </div>
+        <div class="step-cell">
+          <div class="step-num">02</div>
+          <div class="step-icon">🔌</div>
+          <div class="step-title">Point it at your data</div>
+          <div class="step-desc">Paste in a REST endpoint, a CSV with coordinates, a GeoJSON, or an ArcGIS Server URL. If your organisation has an asset register, inspection database, or monitoring feed — SkySync reads it. Bring your own data source. No reformatting.</div>
+        </div>
+        <div class="step-cell">
+          <div class="step-num">03</div>
+          <div class="step-icon">🎯</div>
+          <div class="step-title">Click the map, be there</div>
+          <div class="step-desc">Click any point on the map — SkySync jumps the video to the closest matching frame. Scrub the video — the map cursor follows. Every flag and note is pinned to a real-world coordinate. You never guess what you're looking at again.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+
+<!-- ═══ USE CASES ═══ -->
+<div class="page" id="page-use-cases">
+  <section class="section">
+    <div class="container">
+      <div class="section-heading">
+        <div class="eyebrow">Use cases</div>
+        <h2>Works wherever there's a drone and a question</h2>
+        <p>Built for inspections, surveys, and monitoring — anywhere you need to know what the footage actually means.</p>
+      </div>
+      <div class="use-grid reveal">
+        <div class="use-card" style="--ca:#0891b2;--cb:#06b6d4">
+          <div class="use-icon">🌊</div>
+          <div class="use-title">River and flood monitoring</div>
+          <div class="use-desc">Every survey flight becomes a layer in the change record. Compare erosion between seasons, flag scour events, build a defensible change history for consent reporting — without leaving the field.</div>
+          <div class="use-tags"><span class="tag">Geomorphology</span><span class="tag">DoD analysis</span><span class="tag">Consent reporting</span><span class="tag">Emergency response</span></div>
+        </div>
+        <div class="use-card" style="--ca:#f59e0b;--cb:#fbbf24">
+          <div class="use-icon">🏗️</div>
+          <div class="use-title">Infrastructure inspection</div>
+          <div class="use-desc">Bridge decks, retaining walls, culverts, stopbanks. Flag defects in context — GPS-pinned, timestamped, tied to your asset register. Every note becomes a referenced figure in the report.</div>
+          <div class="use-tags"><span class="tag">Asset register</span><span class="tag">Defect logging</span><span class="tag">PDF report</span><span class="tag">ArcGIS export</span></div>
+        </div>
+        <div class="use-card" style="--ca:#22c55e;--cb:#4ade80">
+          <div class="use-icon">🌿</div>
+          <div class="use-title">Environmental monitoring</div>
+          <div class="use-desc">Vegetation change, coastal erosion, wetland extent, landfill settlement. Pull in historical imagery as a reference layer and measure what's moved. Timestamped evidence for any statutory process.</div>
+          <div class="use-tags"><span class="tag">Change detection</span><span class="tag">Vegetation</span><span class="tag">Coastal</span><span class="tag">Regulatory evidence</span></div>
+        </div>
+        <div class="use-card" style="--ca:#8b5cf6;--cb:#a78bfa">
+          <div class="use-icon">🏔️</div>
+          <div class="use-title">Geotechnical and landslide</div>
+          <div class="use-desc">Track slope movement across multiple surveys. Overlay LiDAR point clouds with video footage to understand what the numbers mean in context. Build a visual record for insurance, engineering sign-off, or public communication.</div>
+          <div class="use-tags"><span class="tag">LiDAR overlay</span><span class="tag">Slope monitoring</span><span class="tag">Point cloud</span><span class="tag">Insurance evidence</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+
+<!-- ═══ PRICING ═══ -->
+<div class="page" id="page-pricing">
+  <section class="section">
+    <div class="container-md">
+      <div class="section-heading">
+        <div class="eyebrow">Pricing</div>
+        <h2>No subscriptions. Buy once, own it.</h2>
+        <p>Perpetual licences, machine-bound. No cloud dependency, no recurring fee, no data leaving your machine.</p>
+      </div>
+      <div class="price-grid reveal">
+        <div class="price-card">
+          <div class="price-tier">Solo</div>
+          <div class="price-blurb">One operator. One machine. Everything included.</div>
+          <div class="price-amount"><div class="price-cur">NZ$</div><div class="price-val">300</div></div>
+          <hr class="price-hr">
+          <div class="price-feats">
+            <div class="pf"><div class="pf-check">✓</div><span>1 machine licence</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>All flight modes</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Unlimited flights</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Video, photo &amp; GPS export</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>12 months of updates</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Email support</span></div>
+          </div>
+          <div class="btn-outline" style="cursor:pointer" onclick="showPage('account')">Start 7-day trial</div>
+        </div>
+        <div class="price-card">
+          <div class="price-tier">Team</div>
+          <div class="price-blurb">Three machines. One licence key to manage them all.</div>
+          <div class="price-amount"><div class="price-cur">NZ$</div><div class="price-val">600</div></div>
+          <hr class="price-hr">
+          <div class="price-feats">
+            <div class="pf"><div class="pf-check">✓</div><span>3 machine licences</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Everything in Solo</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Shared project library</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Team report templates</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Priority support</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Onboarding call</span></div>
+          </div>
+          <div class="btn-outline" style="cursor:pointer" onclick="showPage('account')">Start 7-day trial</div>
+        </div>
+        <div class="price-card featured">
+          <div class="price-badge">Best value</div>
+          <div class="price-tier">Business</div>
+          <div class="price-blurb">Five machines. Built for operations teams.</div>
+          <div class="price-amount"><div class="price-cur">NZ$</div><div class="price-val">1,000</div></div>
+          <hr class="price-hr">
+          <div class="price-feats">
+            <div class="pf"><div class="pf-check">✓</div><span>5 machine licences</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Everything in Team</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Custom report branding</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Priority support</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Onboarding + training</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>$200 per machine</span></div>
+          </div>
+          <div class="btn-accent" style="cursor:pointer" onclick="showPage('account')">Start 7-day trial</div>
+        </div>
+        <div class="price-card">
+          <div class="price-tier">Enterprise</div>
+          <div class="price-blurb">6+ machines. Volume pricing. The more you fly, the less you pay.</div>
+          <div class="price-amount" style="align-items:center"><div class="price-val" style="font-size:28px;letter-spacing:-0.02em">Let's talk</div></div>
+          <hr class="price-hr">
+          <div class="price-feats">
+            <div class="pf"><div class="pf-check">✓</div><span>6+ machines, volume discounts</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Custom layer integration</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>White-label branding</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Dedicated onboarding</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>SLA support</span></div>
+            <div class="pf"><div class="pf-check">✓</div><span>Site licence options</span></div>
+          </div>
+          <a href="mailto:oliver@skysync.co.nz?subject=SkySync%20Enterprise%20Enquiry" class="btn-outline">Get in touch</a>
+        </div>
+      </div>
+
+      <!-- Custom setup callout -->
+      <div class="custom-callout reveal" style="margin-top:40px;background:var(--color-bg-alt);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:32px 36px;display:flex;gap:24px;align-items:flex-start">
+        <div style="flex-shrink:0;width:44px;height:44px;border-radius:var(--radius-md);background:var(--color-accent-light);display:flex;align-items:center;justify-content:center;font-size:20px">⚡</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--color-text-primary);margin-bottom:6px">Need SkySync built for your operation?</div>
+          <p style="font-size:13px;color:var(--color-text-tertiary);line-height:1.6;margin-bottom:12px">We configure custom infrastructure layers, data feeds, and branding for your team. For example — Transpower powerline routes and pole labels overlaid on every map, giving your operators instant spatial awareness of transmission corridors during drone inspection. Custom layer integration, white-label branding, and dedicated training are available as optional add-ons, priced on a per-project basis.</p>
+          <a href="mailto:oliver@skysync.co.nz?subject=Custom%20SkySync%20Setup" style="font-size:13px;font-weight:600;color:var(--color-accent);text-decoration:none">Discuss your setup →</a>
+        </div>
+      </div>
+
+      <p style="text-align:center;font-size:12px;color:var(--color-text-quaternary);margin-top:28px">All prices NZD, GST-exclusive. 7-day full-feature trial — no card required. Licence binds to your machine on first activation.</p>
+    </div>
+  </section>
+</div>
+
+
+<!-- ═══ ACCOUNT ═══ -->
+<div class="page" id="page-account">
+
+  <!-- State A: Auth forms (login / signup) -->
+  <div id="auth-forms">
+    <section class="section">
+      <div class="container" style="max-width:440px">
+        <div class="auth-heading">
+          <h2>Get started with SkySync</h2>
+          <p>Create an account to start your 7-day free trial</p>
+        </div>
+        <div class="auth-tabs">
+          <button class="auth-tab active" onclick="showAuthTab('login')">Sign In</button>
+          <button class="auth-tab" onclick="showAuthTab('signup')">Create Account</button>
+        </div>
+        <div id="auth-login" class="auth-panel active">
+          <form class="auth-form" onsubmit="doLogin(event)">
+            <input class="auth-input" type="email" id="login-email" placeholder="Email address" required>
+            <input class="auth-input" type="password" id="login-pass" placeholder="Password" required>
+            <button type="submit" class="btn-accent" id="login-btn">Sign In</button>
+          </form>
+        </div>
+        <div id="auth-signup" class="auth-panel">
+          <form class="auth-form" onsubmit="doSignup(event)">
+            <input class="auth-input" type="email" id="signup-email" placeholder="Email address" required>
+            <input class="auth-input" type="password" id="signup-pass" placeholder="Password (min 6 characters)" required minlength="6">
+            <input class="auth-input" type="text" id="signup-org" placeholder="Organisation name" required>
+            <button type="submit" class="btn-accent" id="signup-btn">Create Account</button>
+          </form>
+        </div>
+        <div id="auth-msg" class="auth-msg"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- State B: Account dashboard -->
+  <div id="account-dashboard" style="display:none">
+    <section class="section">
+      <div class="container" style="max-width:640px">
+        <div class="acct-header">
+          <div>
+            <h2>Your Account</h2>
+            <p id="acct-email"></p>
+          </div>
+          <button class="btn-outline" onclick="doSignOut()" style="width:auto;padding:8px 18px">Sign out</button>
+        </div>
+
+        <div class="acct-card" id="acct-licence-card">
+          <h3>Licence</h3>
+          <div id="acct-licence-rows">
+            <div style="text-align:center;color:var(--color-text-quaternary);padding:20px;font-size:14px">Loading licence data...</div>
+          </div>
+        </div>
+
+        <div class="acct-download">
+          <h3>Download SkySync</h3>
+          <p>Windows desktop application — v1.0.0</p>
+          <a href="https://github.com/WillowBanks/skysync/releases/download/v1.0.0/SkySync-Setup-1.0.0.exe" class="btn-primary">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M8 12L3 7h3V2h4v5h3L8 12z" fill="currentColor"/><path d="M2 14h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            Download for Windows
+          </a>
+          <p class="acct-note">Enter your licence key when prompted on first launch</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- State C: Email verification pending -->
+  <div id="auth-verify" style="display:none">
+    <section class="section">
+      <div class="acct-verify">
+        <div style="font-size:48px;margin-bottom:20px">✉️</div>
+        <h2>Check your email</h2>
+        <p id="verify-email-msg">We've sent a verification link. Click it to activate your account and get your trial key.</p>
+        <button class="btn-outline" onclick="resendVerification()" style="max-width:280px;margin:0 auto">Resend verification email</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-left">
+      <div class="footer-logo" onclick="showPage('home')">
+        <img src="data:image/png;base64,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" alt="SkySync">
+      </div>
+      <div class="footer-copy">© 2026 SkySync. Built in New Zealand.</div>
+    </div>
+    <div class="footer-links">
+      <a href="mailto:oliver@skysync.co.nz" class="footer-link">Contact</a>
+      <a href="#" class="footer-link">Privacy</a>
+      <a href="#" class="footer-link">Terms</a>
+      <a href="#" class="footer-link">Docs</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ── Supabase client ──
+const SB_URL = 'https://veiwkqpjhzcfvctenkxm.supabase.co';
+const SB_KEY = 'sb_publishable_pBLuTJUG51_ApQ-T76vqzQ_Gs8bQiTy';
+let sb = null;
+try { sb = window.supabase.createClient(SB_URL, SB_KEY); } catch(e) { console.warn('Supabase SDK not loaded'); }
+
+// ── Page navigation ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('page-' + id);
+  if (el) { el.classList.add('active'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  document.querySelectorAll('.nav-link').forEach(b => {
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) b.classList.add('active');
+  });
+  setTimeout(() => {
+    document.querySelectorAll('.reveal:not(.visible)').forEach(el => revealObs.observe(el));
+  }, 50);
+  // If navigating to account page while logged in, show dashboard
+  if (id === 'account' && sb) checkAuthState();
+}
+
+function activateFeature(btn, panelId) {
+  document.querySelectorAll('.fw-item').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.fw-panel').forEach(p => p.classList.remove('active'));
+  const p = document.getElementById('fw-' + panelId);
+  if (p) p.classList.add('active');
+}
+
+// ── Scroll reveal ──
+const revealObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); revealObs.unobserve(e.target); } });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+
+// ── Auth helpers ──
+function authMsg(text, type) {
+  const el = document.getElementById('auth-msg');
+  el.textContent = text;
+  el.className = 'auth-msg ' + type;
+}
+
+function clearAuthMsg() {
+  const el = document.getElementById('auth-msg');
+  el.className = 'auth-msg';
+  el.textContent = '';
+}
+
+function showAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+  if (tab === 'login') {
+    document.querySelectorAll('.auth-tab')[0].classList.add('active');
+    document.getElementById('auth-login').classList.add('active');
+  } else {
+    document.querySelectorAll('.auth-tab')[1].classList.add('active');
+    document.getElementById('auth-signup').classList.add('active');
+  }
+  clearAuthMsg();
+}
+
+function setAccountView(view) {
+  document.getElementById('auth-forms').style.display = view === 'forms' ? '' : 'none';
+  document.getElementById('account-dashboard').style.display = view === 'dashboard' ? '' : 'none';
+  document.getElementById('auth-verify').style.display = view === 'verify' ? '' : 'none';
+}
+
+function updateNav(loggedIn) {
+  const ctaBtn = document.getElementById('nav-cta-signup');
+  const acctLink = document.getElementById('nav-account-link');
+  if (loggedIn) {
+    ctaBtn.style.display = 'none';
+    acctLink.style.display = '';
+  } else {
+    ctaBtn.style.display = '';
+    acctLink.style.display = 'none';
+  }
+}
+
+// ── Signup ──
+async function doSignup(e) {
+  e.preventDefault();
+  if (!sb) { authMsg('Authentication service unavailable', 'error'); return; }
+  const email = document.getElementById('signup-email').value.trim();
+  const pass = document.getElementById('signup-pass').value;
+  const org = document.getElementById('signup-org').value.trim();
+  const btn = document.getElementById('signup-btn');
+  btn.textContent = 'Creating account...'; btn.disabled = true;
+  clearAuthMsg();
+
+  const { data, error } = await sb.auth.signUp({
+    email, password: pass,
+    options: { data: { org_name: org } }
+  });
+
+  btn.textContent = 'Create Account'; btn.disabled = false;
+  if (error) { authMsg(error.message, 'error'); return; }
+
+  if (data.user && !data.user.email_confirmed_at) {
+    document.getElementById('verify-email-msg').textContent =
+      'We\u2019ve sent a verification link to ' + email + '. Click it to activate your account and get your trial key.';
+    setAccountView('verify');
+  } else {
+    await loadDashboard(data.user);
+  }
+}
+
+// ── Login ──
+async function doLogin(e) {
+  e.preventDefault();
+  if (!sb) { authMsg('Authentication service unavailable', 'error'); return; }
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const btn = document.getElementById('login-btn');
+  btn.textContent = 'Signing in...'; btn.disabled = true;
+  clearAuthMsg();
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.textContent = 'Sign In'; btn.disabled = false;
+  if (error) { authMsg(error.message, 'error'); return; }
+  await loadDashboard(data.user);
+}
+
+// ── Sign out ──
+async function doSignOut() {
+  if (sb) await sb.auth.signOut();
+  setAccountView('forms');
+  updateNav(false);
+  showAuthTab('login');
+}
+
+// ── Resend verification ──
+async function resendVerification() {
+  if (!sb) return;
+  const { error } = await sb.auth.resend({ type: 'signup', email: document.getElementById('signup-email').value.trim() });
+  if (error) authMsg(error.message, 'error');
+  else authMsg('Verification email resent. Check your inbox.', 'success');
+}
+
+// ── Check auth state ──
+async function checkAuthState() {
+  if (!sb) return;
+  const { data: { session } } = await sb.auth.getSession();
+  if (session && session.user) {
+    if (!session.user.email_confirmed_at) {
+      setAccountView('verify');
+    } else {
+      await loadDashboard(session.user);
+    }
+    updateNav(true);
+  } else {
+    setAccountView('forms');
+    updateNav(false);
+  }
+}
+
+// ── Load dashboard ──
+async function loadDashboard(user) {
+  setAccountView('dashboard');
+  updateNav(true);
+  document.getElementById('acct-email').textContent = user.email;
+
+  // Fetch licence linked to this user
+  const { data: licences, error } = await sb.from('licences')
+    .select('licence_key, org_name, is_trial, is_active, max_machines, machine_ids, license_expires_at, trial_started_at')
+    .eq('user_id', user.id)
+    .limit(1);
+
+  const rows = document.getElementById('acct-licence-rows');
+
+  if (error || !licences || licences.length === 0) {
+    rows.innerHTML = '<div style="text-align:center;color:var(--color-text-quaternary);padding:20px;font-size:14px">No licence found. If you just signed up, check your email to verify your account first.</div>';
+    return;
+  }
+
+  const lic = licences[0];
+  const machines = lic.machine_ids ? (Array.isArray(lic.machine_ids) ? lic.machine_ids : JSON.parse(lic.machine_ids)) : [];
+  const machineCount = machines.length;
+  const isExpired = lic.license_expires_at && new Date(lic.license_expires_at) < new Date();
+  const tier = lic.is_trial ? 'Trial' : (lic.max_machines <= 1 ? 'Solo' : lic.max_machines <= 3 ? 'Team' : lic.max_machines <= 5 ? 'Business' : 'Enterprise');
+  const statusClass = isExpired ? 'expired' : lic.is_active ? 'active' : 'expired';
+  const statusText = isExpired ? 'Expired' : lic.is_active ? 'Active' : 'Inactive';
+
+  let expiryText = 'Perpetual';
+  if (lic.license_expires_at) {
+    const exp = new Date(lic.license_expires_at);
+    const now = new Date();
+    const daysLeft = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+    expiryText = exp.toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (lic.is_trial && daysLeft > 0) expiryText += ' (' + daysLeft + ' days remaining)';
+  }
+
+  rows.innerHTML =
+    '<div class="acct-row"><span class="acct-label">Key</span><span class="acct-key" onclick="copyKey(this)" title="Click to copy">' + lic.licence_key + '</span></div>' +
+    '<div class="acct-row"><span class="acct-label">Tier</span><span class="acct-value' + (lic.is_trial ? ' trial' : '') + '">' + tier + '</span></div>' +
+    '<div class="acct-row"><span class="acct-label">Status</span><span class="acct-value ' + statusClass + '">' + statusText + '</span></div>' +
+    '<div class="acct-row"><span class="acct-label">Machines</span><span class="acct-value">' + machineCount + ' / ' + lic.max_machines + '</span></div>' +
+    '<div class="acct-row"><span class="acct-label">Expires</span><span class="acct-value">' + expiryText + '</span></div>' +
+    '<div class="acct-row"><span class="acct-label">Organisation</span><span class="acct-value">' + (lic.org_name || '\u2014') + '</span></div>';
+}
+
+function copyKey(el) {
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const orig = el.textContent;
+    el.textContent = 'Copied!';
+    setTimeout(() => { el.textContent = orig; }, 1500);
+  });
+}
+
+// ── Init: check auth on page load ──
+if (sb) {
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      updateNav(true);
+      // If on account page, refresh dashboard
+      if (document.getElementById('page-account').classList.contains('active')) {
+        loadDashboard(session.user);
+      }
+    }
+    if (event === 'SIGNED_OUT') {
+      updateNav(false);
+    }
+  });
+  // Check if already logged in
+  checkAuthState().then(() => {
+    // If URL has #account, show account page
+    if (window.location.hash === '#account') showPage('account');
+  });
+}
+
+// Handle email confirmation redirect (Supabase appends tokens to URL)
+if (window.location.hash.includes('access_token') || window.location.hash.includes('type=signup')) {
+  setTimeout(() => showPage('account'), 500);
+}
+</script>
+
+</body>
+</html>
